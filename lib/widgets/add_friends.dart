@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/database_services.dart';
+
 
 class AddFriends extends StatefulWidget {
   const AddFriends({super.key});
@@ -9,6 +12,15 @@ class AddFriends extends StatefulWidget {
 
 class _friendsScreenState extends State<AddFriends> {
 
+  final _friendIDController = TextEditingController();
+
+  Future<void> _friendSearch() async{
+    //use the database functions to find user and display based on search 
+    //have an add button next to the record 
+    //attach record to the fucntion which makes a new friend connection 
+    //just do it as a follow for now then make the friendships request based?
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,7 +30,7 @@ class _friendsScreenState extends State<AddFriends> {
       body: SafeArea(child: Column(
         children: [
           TextFormField(
-            controller: null,
+            controller: _friendIDController,
             decoration: const InputDecoration(
             hintText: "Friends user ID",
             enabledBorder: OutlineInputBorder(

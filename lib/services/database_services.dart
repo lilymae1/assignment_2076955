@@ -28,7 +28,7 @@ class DatabaseServices {
     return await db.insert('users', userRecord);
   }
 
-  static Future<Map<String, dynamic>?> retriveSingleRecord(int, uID) async {
+  static Future<Map<String, dynamic>?> retrieveSingleRecord(int, uID) async {
     final db = await _openDatabase();
     List<Map<String,dynamic>> result = await db.query('users', where : 'userID =?', whereArgs: [uID],limit: 1);
 

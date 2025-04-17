@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'create_account.dart';
 import '../services/database_services.dart'; // Import your DB functions
+import 'debug_db_viewer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,46 +13,64 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
   final _loginNameController = TextEditingController();
   final _loginPasswordController = TextEditingController();
+  bool _isLoading = false;
+
 
   Future<void> _loginUser() async {
-    final username = _loginNameController.text.trim();
-    final password = _loginPasswordController.text;
+  setState(() => _isLoading = true);
 
-    if (username.isEmpty || password.isEmpty) {
-      _showDialog("Please enter both username and password.");
-      return;
-    }
+  final username = _loginNameController.text.trim();
+  final password = _loginPasswordController.text;
 
-    final dbService = DatabaseServices(); // create an instance
+  if (username.isEmpty || password.isEmpty) {
+    setState(() => _isLoading = false);
+    _showDialog("Please enter both username and password.");
+    return;
+  }
+
+  try {
+    final dbService = DatabaseServices();
     final user = await dbService.getUserByUsername(username);
 
     if (user != null && user['password'] == password) {
-      Navigator.push(
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('username', username);//save login details
+
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomeScreen()),
       );
     } else {
       _showDialog("Incorrect username or password.");
     }
+  } catch (e) {
+    _showDialog("Something went wrong: $e");
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
-  void _showDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Login Failed"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
-          )
-        ],
-      ),
-    );
-  }
+void _showDialog(String message) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Login Failed"),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("OK"),
+        )
+      ],
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +104,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
+              _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton.icon(
                 onPressed: _loginUser,
                 icon: const Icon(Icons.login),
                 label: const Text("Login"),
@@ -106,6 +128,16 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(
                 height: 3,
                 child: ColoredBox(color: Colors.purple),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DebugDBViewer()),
+                );
+              },
+                icon: const Icon(Icons.bug_report),
+                label: const Text("Debug DB Viewer"),
               ),
             ],
           ),
