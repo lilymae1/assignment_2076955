@@ -12,39 +12,111 @@ class AddFriends extends StatefulWidget {
 
 class _friendsScreenState extends State<AddFriends> {
 
-  final _friendIDController = TextEditingController();
+  final _friendUsernameController = TextEditingController();
+  Map<String,dynamic>? _foundUser;
+  String _message = "";
+
+  Future<void> _addFriend() async {
+  final prefs = await SharedPreferences.getInstance();
+  int? currentUserId = prefs.getInt('userID');
+
+  if (currentUserId == null || _foundUser == null) return;
+
+  await DatabaseServices.addFriend(currentUserId, _foundUser!['userID']);
+  await DatabaseServices.addFriend(_foundUser!['userID'], currentUserId);
+
+  setState(() {
+    _message = "Friend added successfully!";
+    _foundUser = null;
+    _friendUsernameController.clear();
+  });
+}
+
 
   Future<void> _friendSearch() async{
-    //use the database functions to find user and display based on search 
-    //have an add button next to the record 
-    //attach record to the fucntion which makes a new friend connection 
-    //just do it as a follow for now then make the friendships request based?
+  final prefs = await SharedPreferences.getInstance();
+  int? currentUserId = prefs.getInt('userID');
+
+  if (currentUserId == null) {
+    setState(() {
+      _message = "User not logged in.";
+    });
+    return;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Add a friend"),
-      ),
-      body: SafeArea(child: Column(
-        children: [
-          TextFormField(
-            controller: _friendIDController,
-            decoration: const InputDecoration(
-            hintText: "Friends user ID",
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.black12),
+  String inputUsername = _friendUsernameController.text.trim();
+  if (inputUsername.isEmpty) return;
+
+  var user = await DatabaseServices.searchUserByUsername(inputUsername, currentUserId);
+
+  setState(() {
+    _foundUser = user;
+    _message = user == null ? "No user found." : "";
+  });
+
+
+  }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text("Add a friend"),
+    ),
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Username input
+            TextFormField(
+              controller: _friendUsernameController,
+              decoration: const InputDecoration(
+                labelText: "Friend's Username",
+                hintText: "Enter username",
+                border: OutlineInputBorder(),
               ),
             ),
-          ),
-        ],
-      )),
-    );
-    //once logged in you can enter a user id for a friend code 
-    //if it matches to an existing friends code it will add to an existing list of freinds??
-    //friends list shows up, create a function to display all friends 
-    //search on the left friends list and other widgets on the right 
-    
-  }
+
+            const SizedBox(height: 10),
+
+            // Search Button
+            ElevatedButton(
+              onPressed: _friendSearch,
+              child: const Text("Search"),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Show found user card
+            if (_foundUser != null)
+              Card(
+                child: ListTile(
+                  title: Text(_foundUser!['userName']),
+                  subtitle: Text("Email: ${_foundUser!['email']}"),
+                  trailing: ElevatedButton(
+                    onPressed: _addFriend,
+                    child: const Text("Add"),
+                  ),
+                ),
+              ),
+
+            // Message (no user found, success, etc.)
+            if (_message.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Text(
+                  _message,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 }

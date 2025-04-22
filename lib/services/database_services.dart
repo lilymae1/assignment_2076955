@@ -59,14 +59,9 @@ class DatabaseServices {
   //add friends functions 
   static Future<void> addFriend(int userID, int friendID) async {
     final db = await _openDatabase();
-    await db.insert(
-    'friends',
-    {
-      'userID': userID,
-      'friendID': friendID,
-    },
-    conflictAlgorithm: ConflictAlgorithm.ignore,
-  );
+    await db.insert('friends',{'userID': userID,'friendID': friendID,},conflictAlgorithm: ConflictAlgorithm.ignore,);
+    await db.insert('friends',{'userID': friendID,'friendID': userID,},conflictAlgorithm: ConflictAlgorithm.ignore,);
+
   }
 
   static Future<List<Map<String, dynamic>>> getFriends(int userID) async {
@@ -87,6 +82,17 @@ class DatabaseServices {
     );
   }
 
-  
+  static Future<Map<String, dynamic>?> searchUserByUsername(String username, int currentUserId) async { //for the find friend page 
+  final db = await _openDatabase();
+  final result = await db.query(
+    'users',
+    where: 'userName = ? AND userID != ?',
+    whereArgs: [username, currentUserId],
+    limit: 1,
+  );
+
+  return result.isNotEmpty ? result.first : null;
+}
+
   
 }

@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
       await prefs.setString('username', username);//save login details
+      await prefs.setInt('userID', user['userID']);
 
       Navigator.pushReplacement(
         context,
