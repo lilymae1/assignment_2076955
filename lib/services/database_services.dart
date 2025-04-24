@@ -3,16 +3,21 @@ import 'package:path/path.dart';
 
 class DatabaseServices {
 
-  static Future<Database> _openDatabase() async {
-    final database_path = await getDatabasesPath();
-    final database_file = join(database_path, "users.db");
-    return openDatabase(database_file,version: 1, onCreate: createDatabase);
-  }
+ static Future<Database> _openDatabase() async {
+  final database_path = await getDatabasesPath();
+  final database_file = join(database_path, "users.db");
+
+  final db = await openDatabase(database_file,version: 1,onCreate: createDatabase,);
+  await db.execute("PRAGMA foreign_keys = ON");
+
+  return db;
+}
+
 
   static Future<void> createDatabase(Database db, int version) async {
     await db.execute('''CREATE TABLE IF NOT EXISTS users (userID INTEGER PRIMARY KEY AUTOINCREMENT,userName TEXT,email TEXT,mobileNo INTEGER,password TEXT)''');
 
-    await db.execute('''CREATE TABLE IF NOT EXISTS friends (connectionid INTEGER PRIMARY KEY AUTOINCREMENT,userID INTEGER,friendID INTEGER,FOREIGN KEY(userID) REFERENCES users(userID),FOREIGN KEY(friendID) REFERENCES users(userID))''');
+    await db.execute('''CREATE TABLE IF NOT EXISTS friends (connectionid INTEGER PRIMARY KEY AUTOINCREMENT,userID INTEGER,friendID INTEGER,UNIQUE(userID, friendID),FOREIGN KEY(userID) REFERENCES users(userID),FOREIGN KEY(friendID) REFERENCES users(userID))''');
   }
 
   //user functions 
@@ -28,7 +33,7 @@ class DatabaseServices {
     return await db.insert('users', userRecord);
   }
 
-  static Future<Map<String, dynamic>?> retrieveSingleRecord(int, uID) async {
+  static Future<Map<String, dynamic>?> retrieveSingleRecord(int uID)async {
     final db = await _openDatabase();
     List<Map<String,dynamic>> result = await db.query('users', where : 'userID =?', whereArgs: [uID],limit: 1);
 
@@ -57,21 +62,30 @@ class DatabaseServices {
 
 
   //add friends functions 
-  static Future<void> addFriend(int userID, int friendID) async {
-    final db = await _openDatabase();
-    await db.insert('friends',{'userID': userID,'friendID': friendID,},conflictAlgorithm: ConflictAlgorithm.ignore,);
-    await db.insert('friends',{'userID': friendID,'friendID': userID,},conflictAlgorithm: ConflictAlgorithm.ignore,);
+ static Future<void> addFriend(int userID, int friendID) async {
+  final db = await _openDatabase();
 
-  }
+      await db.insert('friends', {
+      'userID': userID,
+      'friendID': friendID,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
-  static Future<List<Map<String, dynamic>>> getFriends(int userID) async {
-    final db = await _openDatabase();
-    return await db.rawQuery('''
-    SELECT users.* FROM users
+    await db.insert('friends', {
+      'userID': friendID,
+      'friendID': userID,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+}
+
+
+static Future<List<Map<String, dynamic>>> getFriends(int userID) async {
+  final db = await _openDatabase();
+  return await db.rawQuery('''
+    SELECT DISTINCT users.* FROM users
     INNER JOIN friends ON users.userID = friends.friendID
     WHERE friends.userID = ?
   ''', [userID]);
-  }
+}
+
 
   static Future<void> deleteFriend(int uID, int friendID) async {
     final db = await _openDatabase();
@@ -92,7 +106,19 @@ class DatabaseServices {
   );
 
   return result.isNotEmpty ? result.first : null;
-}
+  }
 
-  
+  static Future<bool> CheckIfAlreadyFreinds(int userID, int otherUserID) async {
+    final db = await _openDatabase();
+
+     final result = await db.query(
+    'friends',
+    where: 'userID = ? AND friendID = ?',
+    whereArgs: [userID, otherUserID],
+    limit: 1,
+  );
+
+  return result.isNotEmpty;
+  }
+
 }

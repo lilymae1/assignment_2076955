@@ -5,6 +5,7 @@ import 'new_swipe.dart';
 import 'update_account.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_services.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,11 +15,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  late Timer _refreshTimer;
+
   List<Map<String, dynamic>> _friends = [];
   int? _userID;
 
   late TabController _tabController;
-  late List<Widget> _tabViews;
 
   final List<Tab> _tabs = const [
     Tab(icon: Icon(Icons.home), text: 'Home'),
@@ -33,20 +35,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     _loadFriends();
 
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _loadFriends(),
+    );
+
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index == 0) {
         _loadFriends(); // Refresh when switching back to Home tab
       }
     });
-
-    _tabViews = [
-      _buildHomeTab(),
-      const AddFriends(),
-      const NewSwipe(),
-      const UpdateAccount(),
-      LogoutTab(logoutCallback: _logout),
-    ];
   }
 
   Future<void> _loadFriends() async {
@@ -71,55 +70,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Welcome to Home Page',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Your Friends',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 80,
-            child: _friends.isEmpty
-                ? const Text("You haven't added any friends yet.")
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _friends.length,
-                    itemBuilder: (context, index) {
-                      final friend = _friends[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Chip(
-                          label: Text(friend['userName']),
-                          avatar: const Icon(Icons.person),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          const Divider(),
-          const SizedBox(height: 20),
-          const Text(
-            'Home Content Goes Here...',
-            style: TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _tabController.dispose();
+    _refreshTimer.cancel();
     super.dispose();
   }
 
@@ -137,7 +91,69 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       body: TabBarView(
         controller: _tabController,
-        children: _tabViews,
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome to Home Page',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Your Friends',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 80,
+                  child: _friends.isEmpty
+                      ? const Text("You haven't added any friends yet.")
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _friends.length,
+                          itemBuilder: (context, index) {
+                            final friend = _friends[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Chip(
+                                avatar: const Icon(Icons.person),
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(friend['userName']),
+                                    const SizedBox(width: 4),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        await DatabaseServices.deleteFriend(_userID!, friend['userID']);
+                                        await DatabaseServices.deleteFriend(friend['userID'], _userID!);
+                                        _loadFriends();
+                                      },
+                                      child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const Divider(),
+                const SizedBox(height: 20),
+                const Text(
+                  'Home Content Goes Here...',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+          AddFriends(onFriendAdded: _loadFriends),
+          const NewSwipe(),
+          const UpdateAccount(),
+          LogoutTab(logoutCallback: _logout),
+        ],
       ),
     );
   }

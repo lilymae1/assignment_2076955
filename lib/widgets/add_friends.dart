@@ -4,7 +4,8 @@ import '../services/database_services.dart';
 
 
 class AddFriends extends StatefulWidget {
-  const AddFriends({super.key});
+  final VoidCallback? onFriendAdded;
+  const AddFriends({super.key, this.onFriendAdded});
 
   @override
   State<AddFriends> createState() => _friendsScreenState();
@@ -30,6 +31,8 @@ class _friendsScreenState extends State<AddFriends> {
     _foundUser = null;
     _friendUsernameController.clear();
   });
+
+  widget.onFriendAdded?.call();
 }
 
 
@@ -48,6 +51,25 @@ class _friendsScreenState extends State<AddFriends> {
   if (inputUsername.isEmpty) return;
 
   var user = await DatabaseServices.searchUserByUsername(inputUsername, currentUserId);
+
+  if(user != null){
+    if(user['userID'] == currentUserId){
+      setState(() {
+        _message = "You can't add yourself";
+        _foundUser = null;
+      });
+      return;
+    }
+
+    bool alreadyFriends = await DatabaseServices.CheckIfAlreadyFreinds(currentUserId, user['userID']);
+    if(alreadyFriends){
+      setState(() {
+        _message = "You are already friends";
+        _foundUser = null;
+      });
+      return;
+    }
+  }
 
   setState(() {
     _foundUser = user;
