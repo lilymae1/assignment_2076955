@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
           AddFriends(onFriendAdded: _loadFriends),
-          const NewSwipe(),
+          NewSwipe(sessionId: ''),
           const UpdateAccount(),
           LogoutTab(logoutCallback: _logout),
         ],
